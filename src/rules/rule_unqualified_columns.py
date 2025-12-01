@@ -81,14 +81,14 @@ class RuleUnqualifiedColumns:
             if in_select:
                 # Extract column names: word characters, dots (for qualified columns)
                 # Match: col, t.col, schema.table.col, CAST(...), COUNT(*), etc.
-                col_pattern = r'(?:^|[,\s(])([\w.]+)(?:\s|,|$|\))'
+                col_pattern = r'(?:^|[,\s(])([\w.]+?)(?=[,\s)$]|$)'
                 matches = re.finditer(col_pattern, line)
                 
                 for match in matches:
                     col_ref = match.group(1).strip()
                     
                     # Skip empty strings, SQL keywords, and numeric literals
-                    if col_ref and not re.match(r'^\d+$', col_ref) and col_ref.upper() not in ('SELECT', 'DISTINCT', 'AS'):
+                    if col_ref and not re.match(r'^\d+$', col_ref) and col_ref.upper() not in ('SELECT', 'DISTINCT', 'AS', 'FROM', 'WHERE', 'GROUP', 'ORDER', 'BY', 'HAVING', 'JOIN', 'LEFT', 'RIGHT', 'INNER', 'OUTER', 'ON', 'LIMIT', 'OFFSET'):
                         columns.append((line_num, col_ref))
         
         return columns
