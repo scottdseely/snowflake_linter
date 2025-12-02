@@ -10,7 +10,8 @@ import importlib
 import inspect
 from typing import List, Dict, Any
 from pathlib import Path
-from utils.file_utils import read_sql_file, get_sql_files, write_report
+from .utils.file_utils import read_sql_file, get_sql_files, write_report
+
 
 
 class SnowflakeLinter:
@@ -67,11 +68,8 @@ class SnowflakeLinter:
         """
         Lint a single SQL file.
         
-        Args:
-            file_path: Path to SQL file
-            
         Returns:
-            List of violations found
+            List of normalized violation dictionaries.
         """
         try:
             sql_content = read_sql_file(file_path)
@@ -79,32 +77,49 @@ class SnowflakeLinter:
             
             for rule in self.rules:
                 violations = rule.check(sql_content, file_path)
-                file_violations.extend(violations)
-            
+
+                # Normalize LintResult → dict
+                for v in violations:
+                    if hasattr(v, "to_dict"):
+                        d = v.to_dict()
+                        d["file"] = file_path
+                        file_violations.append(d)
+                    else:
+                        # Already a dict
+                        v.setdefault("file", file_path)
+                        file_violations.append(v)
+
             return file_violations
+        
         except Exception as e:
             print(f"Error linting file {file_path}: {str(e)}")
             return []
+
+
     
     def lint_directory(self, directory: str) -> List[Dict[str, Any]]:
         """
         Lint all SQL files in a directory.
-        
-        Args:
-            directory: Directory path to lint
-            
-        Returns:
-            List of all violations found
+        Returns list of normalized violation dictionaries.
         """
         sql_files = get_sql_files(directory)
         all_violations = []
         
         for sql_file in sql_files:
             violations = self.lint_file(sql_file)
-            all_violations.extend(violations)
-        
+
+            for v in violations:
+                if hasattr(v, "to_dict"):
+                    d = v.to_dict()
+                    d["file"] = sql_file
+                    all_violations.append(d)
+                else:
+                    v.setdefault("file", sql_file)
+                    all_violations.append(v)
+
         self.violations = all_violations
         return all_violations
+
     
     def generate_report(self, output_path: str) -> None:
         """
